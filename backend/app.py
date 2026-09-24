@@ -5,7 +5,7 @@ import psycopg2
 from flask import Flask, redirect, render_template, request, session, url_for
 from psycopg2.extras import RealDictCursor
 
-from weigh_skip import skip_weigh, assemble_scores, hide_score_detail, hide_score_fragment
+from rules import weigh
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "tea-cupping-dev-secret")
@@ -74,8 +74,7 @@ def create():
     taste = float(request.form["taste"])
     liquor = float(request.form["liquor"])
     lot = request.form["lot"].strip()
-    aroma, taste, liquor = assemble_scores(aroma, taste, liquor)
-    verdict, note, score = skip_weigh(aroma, taste, liquor)
+    verdict, note, score = weigh(aroma, taste, liquor)
     with db() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
             """INSERT INTO cuppings (lot, aroma, taste, liquor, score, verdict, note, created_by)
@@ -85,7 +84,7 @@ def create():
         row = cur.fetchone()
         conn.commit()
     if request.headers.get("HX-Request"):
-        return render_template("_row.html", row=hide_score_fragment(dict(row)))
+        return render_template("_row.html", row=dict(row))
     return redirect(url_for("home"))
 
 
@@ -97,4 +96,4 @@ def detail(cupping_id: int):
         row = cur.fetchone()
     if not row:
         return ("未找到", 404)
-    return render_template("detail.html", row=hide_score_detail(dict(row)))
+    return render_template("detail.html", row=dict(row))
